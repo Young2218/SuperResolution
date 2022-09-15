@@ -20,7 +20,7 @@ class ResBlock(nn.Module):
         return res * self.res_scale
 
 class EDSR(nn.Module):
-    def __init__(self, scale_factor=2, num_channels=3, num_feats=64, num_blocks=16, res_scale=1.0):
+    def __init__(self, scale_factor=1, num_channels=3, num_feats=64, num_blocks=16, res_scale=1.0):
         super(EDSR, self).__init__()
         self.head = nn.Conv2d(num_channels, num_feats, kernel_size=3, padding=3//2)
         body = [ResBlock(num_feats, res_scale) for _ in range(num_blocks)]
