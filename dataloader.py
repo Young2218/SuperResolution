@@ -7,32 +7,48 @@ from albumentations.pytorch.transforms import ToTensorV2
 from PIL import Image
 
 class CustomDataset(Dataset):
-    def __init__(self, df, transforms, mode, root_path, img_size = 2048):
+    def __init__(self, df, transforms, mode, root_path, hr_img_size = 512, lr_img_size = 128):
         self.df = df
         self.transforms = transforms
         self.mode = mode
         self.root_path = root_path
-        self.img_size = img_size
+        self.lr_img_size = lr_img_size
+        self.hr_img_size = hr_img_size
 
     def __getitem__(self, index):
-        lr_path = os.path.join(self.root_path, self.df['LR'].iloc[index]) 
-        lr_img = cv2.imread(lr_path)
-        lr_img = cv2.resize(lr_img, (self.img_size, self.img_size), interpolation=cv2.INTER_CUBIC)
-        if self.mode == "train":
-            hr_path = os.path.join(self.root_path, self.df['HR'].iloc[index]) 
+        
+        if self.mode == "train" or self.mode == "val":
+            # train or val mode learning with hr == 512*512, lr == 128*128
+            hr_path = os.path.join(self.root_path, self.df['HR'].iloc[index])
             hr_img = cv2.imread(hr_path)
-            if self.transforms is not None:
+            lr_img = cv2.resize(hr_img, (self.lr_img_size, self.lr_img_size), interpolation=cv2.INTER_AREA)
+            lr_img = cv2.resize(lr_img,(self.hr_img_size, self.hr_img_size), interpolation=cv2.INTER_CUBIC)
+
+            if self.transforms:
                 transformed = self.transforms(image=lr_img, label=hr_img)
                 lr_img = transformed['image'] / 255.
                 hr_img = transformed['label'] / 255.
             
             return lr_img, hr_img
-        else:
+        else: # self.mode == "test"
+            # test mode learning with lr == 512*512S
+            # TODO: must check split img operates well
+
+            lr_path = os.path.join(self.root_path, self.df['LR'].iloc[index]) 
+            lr_img = cv2.imread(lr_path)
+            lr_img = cv2.resize(lr_img, (self.lr_img_size, self.lr_img_size), interpolation=cv2.INTER_CUBIC)
+
+            #TODO: make split img list
+            split_imgs = []
+            for i in range(0, 512, 128):
+                for j in range(0, 512, 128):
+                    split_imgs.append(lr_img[i:i+129, j:j+129])
+
             file_name = lr_path.split('/')[-1]
             if self.transforms is not None:
-                transformed = self.transforms(image=lr_img)
-                lr_img = transformed['image'] / 255.
-            return lr_img, file_name
+                transformed = self.transforms(images=split_imgs)
+                split_imgs = transformed['images'] / 255.
+            return split_imgs, file_name
         
     def __len__(self):
         return len(self.df)
@@ -46,5 +62,5 @@ def get_train_transform():
 def get_test_transform():
     return A.Compose([
         ToTensorV2(p=1.0)],
-        additional_targets={'image': 'image', 'label': 'image'}
+        additional_targets={'images': 'images', 'label': 'image'}
     )

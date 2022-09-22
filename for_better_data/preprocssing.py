@@ -33,15 +33,23 @@ def get_file_names(folder_path):
     return file_name_list
 
 
-folder_path = "/home/rnjbdya/Downloads/div2k/DIV2K_train_HR/DIV2K_train_HR/"
-save_path = "/home/rnjbdya/Downloads/open/split_img/"
-file_names = get_file_names(folder_path)
+def rename_all_files(folder_path):
+    file_name_list = [f for f in os.listdir(
+        folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+    for fn in file_name_list:
+        os.rename(os.path.join(folder_path, fn), os.path.join(folder_path, "a" + fn))
 
-paths = ["/home/rnjbdya/Downloads/set5/SR_testing_datasets/Urban100/",
-         "/home/rnjbdya/Downloads/set5/SR_testing_datasets/Manga109/"]
+
+
+
+save_path = "/home/prml/Documents/ChanYoung/ImageDataSet/train/"
+
+paths = ["/home/prml/Documents/ChanYoung/ImageDataSet/original/"]
 
 for folder_path in paths:
     file_names = get_file_names(folder_path)
     for file_name in file_names:
         split_save_img(folder_path, file_name, save_path)
         print(file_name)
+
+# rename_all_files("/home/prml/Documents/ChanYoung/div2k/DIV2K_train_HR/DIV2K_train_HR")

@@ -11,16 +11,18 @@ import random
 from train import train
 from models.SRCNN import SRCNN
 from models.EDSR import EDSR
+from models.SwinIR import SwinIR
+from models.HAT import HAT
 
 # Hyerparameter Setting
 CFG = {
-    'IMG_SIZE': 2048,
-    'EPOCHS': 100,
+    'IMG_SIZE': 512,
+    'EPOCHS': 500,
     'LEARNING_RATE': 1e-4,
     'BATCH_SIZE': 1,
     'SEED': 41,
-    'ROOT_PATH': "/home/rnjbdya/Downloads/open",
-    'SAVE_PATH': "/home/rnjbdya/Downloads/open/model.pt"
+    'ROOT_PATH': "/home/prml/Documents/ChanYoung/ImageDataSet",
+    'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/swinir.pt"
 }
 
 def seed_everything(seed):
@@ -38,27 +40,41 @@ print(device)
 
 # set data loader
 train_df = pd.read_csv(CFG['ROOT_PATH'] + '/train.csv')
-test_df = pd.read_csv(CFG['ROOT_PATH'] + '/test.csv')
+val_df = pd.read_csv(CFG['ROOT_PATH'] + '/val.csv')
+# test_df = pd.read_csv(CFG['ROOT_PATH'] + '/test.csv')
 
 train_dataset = CustomDataset(
     train_df, get_train_transform(), "train", CFG['ROOT_PATH'])
 train_loader = DataLoader(
     train_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=True)
 
-test_dataset = CustomDataset(
-    test_df, get_test_transform(), "test", CFG['ROOT_PATH'])
-test_loader = DataLoader(
-    test_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
+val_dataset = CustomDataset(
+    train_df, get_test_transform(), "val", CFG['ROOT_PATH'])
+val_loader = DataLoader(
+    val_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
+
+# test_dataset = CustomDataset(
+#     test_df, get_test_transform(), "test", CFG['ROOT_PATH'])
+# test_loader = DataLoader(
+#     test_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
 
 # training
-model = nn.DataParallel(EDSR())
+net = SwinIR(upscale=4, in_chans=3, img_size=CFG['IMG_SIZE'], window_size=8,
+                        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
+                        num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
+                        mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
+
+
+
+
+model = nn.DataParallel(net)
 optimizer = torch.optim.Adam(params = model.parameters(), lr = CFG["LEARNING_RATE"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-criterion = nn.MSELoss().to(device)
+criterion = nn.L1Loss().to(device)
 
 best_model = train(model=model,
                    train_loader=train_loader,
-                   val_loader=None,
+                   val_loader=val_loader,
                    optimizer=optimizer,
                    criterion=criterion,
                    scheduler=scheduler,
