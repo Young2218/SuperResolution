@@ -22,7 +22,7 @@ def train(model, train_loader, val_loader, optimizer, criterion, scheduler, devi
             optimizer.zero_grad()
             
             pred_hr_img = model(lr_img)
-            print(pred_hr_img.shape)
+            print(f"hr: {hr_img.shape}, lr: {lr_img.shape}, pred: {pred_hr_img.shape}")
             loss = criterion(pred_hr_img, hr_img)
             
             loss.backward()

@@ -21,8 +21,9 @@ class CustomDataset(Dataset):
             # train or val mode learning with hr == 512*512, lr == 128*128
             hr_path = os.path.join(self.root_path, self.df['HR'].iloc[index])
             hr_img = cv2.imread(hr_path)
+            hr_img = cv2.resize(hr_img, (self.hr_img_size, self.hr_img_size), interpolation=cv2.INTER_AREA)
             lr_img = cv2.resize(hr_img, (self.lr_img_size, self.lr_img_size), interpolation=cv2.INTER_AREA)
-            lr_img = cv2.resize(lr_img,(self.hr_img_size, self.hr_img_size), interpolation=cv2.INTER_CUBIC)
+            #lr_img = cv2.resize(lr_img,(self.hr_img_size, self.hr_img_size), interpolation=cv2.INTER_CUBIC)
 
             if self.transforms:
                 transformed = self.transforms(image=lr_img, label=hr_img)

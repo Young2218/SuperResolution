@@ -16,7 +16,8 @@ from models.HAT import HAT
 
 # Hyerparameter Setting
 CFG = {
-    'IMG_SIZE': 512,
+    'LR_SIZE': 128,
+    'HR_SIZE': 512,
     'EPOCHS': 500,
     'LEARNING_RATE': 1e-4,
     'BATCH_SIZE': 1,
@@ -44,12 +45,12 @@ val_df = pd.read_csv(CFG['ROOT_PATH'] + '/val.csv')
 # test_df = pd.read_csv(CFG['ROOT_PATH'] + '/test.csv')
 
 train_dataset = CustomDataset(
-    train_df, get_train_transform(), "train", CFG['ROOT_PATH'])
+    train_df, get_train_transform(), "train", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
 train_loader = DataLoader(
     train_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=True)
 
 val_dataset = CustomDataset(
-    train_df, get_test_transform(), "val", CFG['ROOT_PATH'])
+    train_df, get_test_transform(), "val", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
 val_loader = DataLoader(
     val_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
 
@@ -59,10 +60,9 @@ val_loader = DataLoader(
 #     test_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
 
 # training
-net = SwinIR(upscale=4, in_chans=3, img_size=CFG['IMG_SIZE'], window_size=8,
-                        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
-                        num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
-                        mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
+net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
+                        img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
+                        mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
 
 
 
