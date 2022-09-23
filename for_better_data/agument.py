@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import os
 
 data_path = "/home/prml/Documents/ChanYoung/ImageDataSet/split/"
-train_save_path = "/home/prml/Documents/ChanYoung/ImageDataSet/train"
-val_save_path = "/home/prml/Documents/ChanYoung/ImageDataSet/val"
+train_save_path = "/home/prml/Documents/ChanYoung/train"
+val_save_path = "/home/prml/Documents/ChanYoung/val"
 
 train_num = 0
 val_num = 0

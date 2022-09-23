@@ -1,3 +1,4 @@
+from importlib.resources import path
 import cv2
 import numpy as np
 import os
@@ -42,14 +43,14 @@ def rename_all_files(folder_path):
 
 
 
-save_path = "/home/prml/Documents/ChanYoung/ImageDataSet/train/"
+save_path = "/home/prml/Documents/ChanYoung/ImageDataSet/split/"
 
 paths = ["/home/prml/Documents/ChanYoung/ImageDataSet/original/"]
 
 for folder_path in paths:
     file_names = get_file_names(folder_path)
     for file_name in file_names:
-        split_save_img(folder_path, file_name, save_path)
+        split_save_img(folder_path, file_name, save_path, patch_size=256)
         print(file_name)
 
 # rename_all_files("/home/prml/Documents/ChanYoung/div2k/DIV2K_train_HR/DIV2K_train_HR")

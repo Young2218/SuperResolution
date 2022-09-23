@@ -16,15 +16,18 @@ from models.HAT import HAT
 
 # Hyerparameter Setting
 CFG = {
-    'LR_SIZE': 128,
-    'HR_SIZE': 512,
-    'EPOCHS': 500,
+    'LR_SIZE': 64,
+    'HR_SIZE': 256,
+    'EPOCHS': 300,
     'LEARNING_RATE': 1e-4,
-    'BATCH_SIZE': 1,
+    'BATCH_SIZE': 6,
+    'EARLY_STOP':10,
     'SEED': 41,
-    'ROOT_PATH': "/home/prml/Documents/ChanYoung/ImageDataSet",
+    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth",
+    'ROOT_PATH': "/home/prml/Documents/ChanYoung/",
     'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/swinir.pt"
 }
+
 
 def seed_everything(seed):
     random.seed(seed)
@@ -35,8 +38,10 @@ def seed_everything(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
-seed_everything(CFG['SEED']) # Seed 고정
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+seed_everything(CFG['SEED'])  # Seed 고정
+device = torch.device(
+    'cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(device)
 
 # set data loader
@@ -50,7 +55,7 @@ train_loader = DataLoader(
     train_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=True)
 
 val_dataset = CustomDataset(
-    train_df, get_test_transform(), "val", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
+    val_df, get_test_transform(), "val", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
 val_loader = DataLoader(
     val_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
 
@@ -61,16 +66,17 @@ val_loader = DataLoader(
 
 # training
 net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
-                        img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
-                        mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
+             img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
+             mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
 
-
-
+net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH'])['params_ema'],strict=True)
 
 model = nn.DataParallel(net)
-optimizer = torch.optim.Adam(params = model.parameters(), lr = CFG["LEARNING_RATE"])
+optimizer = torch.optim.Adam(
+    params=model.parameters(), lr=CFG["LEARNING_RATE"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 criterion = nn.L1Loss().to(device)
+
 
 best_model = train(model=model,
                    train_loader=train_loader,
@@ -80,6 +86,6 @@ best_model = train(model=model,
                    scheduler=scheduler,
                    device=device,
                    save_path=CFG['SAVE_PATH'],
-                   max_epoch= CFG['EPOCHS'],
-                   early_stop=10
+                   max_epoch=CFG['EPOCHS'],
+                   early_stop=CFG['EARLY_STOP']
                    )
