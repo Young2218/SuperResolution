@@ -80,3 +80,5 @@ def train(model, train_loader, val_loader, optimizer, criterion, scheduler, devi
             f'Epoch:{epoch}, Train Loss:{_train_loss:.5f}, Val Loss:{_val_loss:.5f}, es:{check_early_stop}')
 
     return best_model
+
+
