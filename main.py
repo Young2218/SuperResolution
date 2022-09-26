@@ -20,12 +20,12 @@ CFG = {
     'HR_SIZE': 256,
     'EPOCHS': 300,
     'LEARNING_RATE': 1e-4,
-    'BATCH_SIZE': 6,
+    'BATCH_SIZE': 64,
     'EARLY_STOP':10,
     'SEED': 41,
     'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth",
     'ROOT_PATH': "/home/prml/Documents/ChanYoung/",
-    'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/swinir.pt"
+    'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt"
 }
 
 
@@ -65,11 +65,18 @@ val_loader = DataLoader(
 #     test_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
 
 # training
-net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
-             img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
-             mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
 
-net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH'])['params_ema'],strict=True)
+# swinir pre-trained
+# net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
+#              img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
+#              mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
+# net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH'])['params_ema'],strict=True)
+
+net = EDSR(scale_factor=4)
+
+# for param in net.parameters():
+#     param.requires_grad = False
+
 
 model = nn.DataParallel(net)
 optimizer = torch.optim.Adam(

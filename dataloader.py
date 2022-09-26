@@ -32,24 +32,27 @@ class CustomDataset(Dataset):
             
             return lr_img, hr_img
         else: # self.mode == "test"
-            # test mode learning with lr == 512*512S
+            # test mode learning with lr == 512*512 -> 64*64 -> divided 8
             # TODO: must check split img operates well
 
             lr_path = os.path.join(self.root_path, self.df['LR'].iloc[index]) 
             lr_img = cv2.imread(lr_path)
-            lr_img = cv2.resize(lr_img, (self.lr_img_size, self.lr_img_size), interpolation=cv2.INTER_CUBIC)
+            lr_img = cv2.resize(lr_img, (512, 512), interpolation=cv2.INTER_CUBIC)
 
             #TODO: make split img list
             split_imgs = []
-            for i in range(0, 512, 128):
-                for j in range(0, 512, 128):
-                    split_imgs.append(lr_img[i:i+129, j:j+129])
+            for i in range(0, 512, 64):
+                for j in range(0, 512, 64):
+                    split_imgs.append(lr_img[i:i+64, j:j+64])
 
             file_name = lr_path.split('/')[-1]
+            split_tensors = []
             if self.transforms is not None:
-                transformed = self.transforms(images=split_imgs)
-                split_imgs = transformed['images'] / 255.
-            return split_imgs, file_name
+                for s_img in split_imgs:
+                    transformed = self.transforms(image=s_img)
+                    split_tensors.append(transformed['image'] / 255.)
+
+            return split_tensors, file_name
         
     def __len__(self):
         return len(self.df)
@@ -63,5 +66,5 @@ def get_train_transform():
 def get_test_transform():
     return A.Compose([
         ToTensorV2(p=1.0)],
-        additional_targets={'images': 'images', 'label': 'image'}
+        additional_targets={'image': 'image', 'label': 'image'}
     )
