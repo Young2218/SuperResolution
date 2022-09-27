@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import os
 import random
-
+from collections import OrderedDict
 from train import train
 from models.SRCNN import SRCNN
 from models.EDSR import EDSR
@@ -18,12 +18,12 @@ from models.HAT import HAT
 CFG = {
     'LR_SIZE': 64,
     'HR_SIZE': 256,
-    'EPOCHS': 300,
+    'EPOCHS': 100000,
     'LEARNING_RATE': 1e-4,
     'BATCH_SIZE': 64,
-    'EARLY_STOP':10,
+    'EARLY_STOP':30,
     'SEED': 41,
-    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth",
+    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt",
     'ROOT_PATH': "/home/prml/Documents/ChanYoung/",
     'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt"
 }
@@ -42,12 +42,13 @@ def seed_everything(seed):
 seed_everything(CFG['SEED'])  # Seed 고정
 device = torch.device(
     'cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(device)
 
 # set data loader
 train_df = pd.read_csv(CFG['ROOT_PATH'] + '/train.csv')
 val_df = pd.read_csv(CFG['ROOT_PATH'] + '/val.csv')
-# test_df = pd.read_csv(CFG['ROOT_PATH'] + '/test.csv')
+
+train_df = train_df.iloc[:1024]
+val_df = val_df.iloc[:256]
 
 train_dataset = CustomDataset(
     train_df, get_train_transform(), "train", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
@@ -59,12 +60,6 @@ val_dataset = CustomDataset(
 val_loader = DataLoader(
     val_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
 
-# test_dataset = CustomDataset(
-#     test_df, get_test_transform(), "test", CFG['ROOT_PATH'])
-# test_loader = DataLoader(
-#     test_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
-
-# training
 
 # swinir pre-trained
 # net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
@@ -72,17 +67,27 @@ val_loader = DataLoader(
 #              mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
 # net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH'])['params_ema'],strict=True)
 
+# EDSR ----------------------------------------------------------------------
 net = EDSR(scale_factor=4)
+# loaded_state_dict = torch.load(CFG['MODEL_LOAD_PATH']['state_dict'])
+
+model = nn.DataParallel(net)
+optimizer = torch.optim.Adam(
+    params=model.parameters(), lr=1e-4, betas=(0.9,0.999), eps=1e-8)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+criterion = nn.L1Loss().to(device)
+
+# net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH']),strict=True)
 
 # for param in net.parameters():
 #     param.requires_grad = False
 
 
-model = nn.DataParallel(net)
-optimizer = torch.optim.Adam(
-    params=model.parameters(), lr=CFG["LEARNING_RATE"])
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-criterion = nn.L1Loss().to(device)
+# model = nn.DataParallel(net)
+# optimizer = torch.optim.Adam(
+#     params=model.parameters(), lr=CFG["LEARNING_RATE"])
+# scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+# criterion = nn.L1Loss().to(device)
 
 
 best_model = train(model=model,
