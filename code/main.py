@@ -20,26 +20,13 @@ CFG = {
     'HR_SIZE': 256,
     'EPOCHS': 100000,
     'LEARNING_RATE': 1e-4,
-    'BATCH_SIZE': 64,
-    'EARLY_STOP':30,
-    'SEED': 41,
+    'BATCH_SIZE': 16,
+    'EARLY_STOP': 30,
     'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt",
     'ROOT_PATH': "/home/prml/Documents/ChanYoung/",
     'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt"
 }
 
-
-def seed_everything(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-
-
-seed_everything(CFG['SEED'])  # Seed 고정
 device = torch.device(
     'cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -47,8 +34,8 @@ device = torch.device(
 train_df = pd.read_csv(CFG['ROOT_PATH'] + '/train.csv')
 val_df = pd.read_csv(CFG['ROOT_PATH'] + '/val.csv')
 
-train_df = train_df.iloc[:1024]
-val_df = val_df.iloc[:256]
+# train_df = train_df.iloc[:1024]
+# val_df = val_df.iloc[:256]
 
 train_dataset = CustomDataset(
     train_df, get_train_transform(), "train", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
@@ -68,12 +55,12 @@ val_loader = DataLoader(
 # net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH'])['params_ema'],strict=True)
 
 # EDSR ----------------------------------------------------------------------
-net = EDSR(scale_factor=4)
+net = EDSR(n_feats=256, n_resblocks=32, res_scale=0.1,scale=4)
 # loaded_state_dict = torch.load(CFG['MODEL_LOAD_PATH']['state_dict'])
 
 model = nn.DataParallel(net)
 optimizer = torch.optim.Adam(
-    params=model.parameters(), lr=1e-4, betas=(0.9,0.999), eps=1e-8)
+    params=model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 criterion = nn.L1Loss().to(device)
 
