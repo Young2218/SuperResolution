@@ -1,4 +1,4 @@
-from dataloader import CustomDataset, get_test_transform, get_train_transform
+from dataset import CustomDataset
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -16,15 +16,16 @@ from models.HAT import HAT
 
 # Hyerparameter Setting
 CFG = {
-    'LR_SIZE': 64,
-    'HR_SIZE': 256,
+    'LR_SIZE': 256,
+    'HR_SIZE': 1024,
     'EPOCHS': 100000,
     'LEARNING_RATE': 1e-4,
-    'BATCH_SIZE': 16,
+    'BATCH_SIZE': 1,
     'EARLY_STOP': 30,
-    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt",
-    'ROOT_PATH': "/home/prml/Documents/ChanYoung/",
-    'SAVE_PATH': "/home/prml/Documents/ChanYoung/model_save/edsr.pt"
+    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/SuperResolution/saved_model/002_lightweightSR_DIV2K_s64w8_SwinIR-S_x4.pth",
+    'MODEL_NAME': 'swinir',
+    'ROOT_PATH': "/home/prml/Documents/ChanYoung/SuperResolution/data",
+    'SAVE_PATH': "/home/prml/Documents/ChanYoung/SuperResolution/saved_model/"
 }
 
 device = torch.device(
@@ -34,35 +35,46 @@ device = torch.device(
 train_df = pd.read_csv(CFG['ROOT_PATH'] + '/train.csv')
 val_df = pd.read_csv(CFG['ROOT_PATH'] + '/val.csv')
 
-# train_df = train_df.iloc[:1024]
-# val_df = val_df.iloc[:256]
+train_df = train_df[train_df['min_size'] >= 1024]
+val_df = val_df[val_df['min_size'] >= 1024]
+
+# train_df = train_df.iloc[:10]
+# val_df = val_df.iloc[:1]
 
 train_dataset = CustomDataset(
-    train_df, get_train_transform(), "train", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
+    train_df, "train", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
 train_loader = DataLoader(
     train_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=True)
 
 val_dataset = CustomDataset(
-    val_df, get_test_transform(), "val", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
+    val_df, "val", CFG['ROOT_PATH'], CFG['HR_SIZE'], CFG['LR_SIZE'])
 val_loader = DataLoader(
-    val_dataset, batch_size=CFG['BATCH_SIZE'], shuffle=False)
+    val_dataset, 1, shuffle=False)
 
 
-# swinir pre-trained
-# net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
-#              img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
-#              mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
-# net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH'])['params_ema'],strict=True)
-
-# EDSR ----------------------------------------------------------------------
-net = EDSR(n_feats=256, n_resblocks=32, res_scale=0.1,scale=4)
-# loaded_state_dict = torch.load(CFG['MODEL_LOAD_PATH']['state_dict'])
-
+# swinir pre-trained -----------------------------------------------
+net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
+                    img_range=1., depths=[6, 6, 6, 6], embed_dim=60, num_heads=[6, 6, 6, 6],
+                    mlp_ratio=2, upsampler='pixelshuffledirect', resi_connection='1conv')
 model = nn.DataParallel(net)
 optimizer = torch.optim.Adam(
     params=model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 criterion = nn.L1Loss().to(device)
+
+
+
+
+
+# EDSR ----------------------------------------------------------------------
+# net = EDSR(n_feats=256, n_resblocks=32, res_scale=0.1, scale=4)
+# # loaded_state_dict = torch.load(CFG['MODEL_LOAD_PATH']['state_dict'])
+
+# model = nn.DataParallel(net)
+# optimizer = torch.optim.Adam(
+#     params=model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8)
+# scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+# criterion = nn.L1Loss().to(device)
 
 # net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH']),strict=True)
 
@@ -78,6 +90,7 @@ criterion = nn.L1Loss().to(device)
 
 
 best_model = train(model=model,
+                   model_name=CFG['MODEL_NAME'],
                    train_loader=train_loader,
                    val_loader=val_loader,
                    optimizer=optimizer,
