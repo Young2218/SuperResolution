@@ -5,16 +5,16 @@ import torch
 from tqdm.auto import tqdm
 import cv2
 import zipfile
-from dataloader import CustomDataset, get_test_transform, get_train_transform
+from dataset import CustomDataset, get_test_transform
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from models.SwinIR import SwinIR
+from models.EDSR import EDSR
 
 
 def inference(model, test_loader, device):
     model.to(device)
-    model.eval()
 
     pred_img_list = []
     name_list = []
@@ -35,10 +35,10 @@ def inference(model, test_loader, device):
                 pred_split_img = pred_split_img*255.
                 pred_split_img = pred_split_img.astype('uint8')
 
-                x1 = i//8
-                x2 = i % 8
-                pred[256*x1:256*x1 + 256, 256*x2:256 *
-                     x2 + 256, :] = pred_split_img
+                x1 = i//4
+                x2 = i % 4
+                pred[512*x1:512*x1 + 512, 512*x2:512 *
+                     x2 + 512, :] = pred_split_img
                 # cv2.imshow("show", pred_split_img)
                 # cv2.waitKey(0)
 
@@ -65,10 +65,10 @@ def submission(pred_name_list, pred_img_list):
 
 # Hyerparameter Setting
 CFG = {
-    'LR_SIZE': 64,
-    'HR_SIZE': 256,
-    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/model_save/swinir.pt",
-    'ROOT_PATH': "/home/prml/Documents/ChanYoung/",
+    'LR_SIZE': 128,
+    'HR_SIZE': 512,
+    'MODEL_LOAD_PATH': "/home/prml/Documents/ChanYoung/SuperResolution/saved_model/edsr_120_0.042.pt",
+    'ROOT_PATH': "/home/prml/Documents/ChanYoung/SuperResolution/data"
 }
 
 device = torch.device(
@@ -76,13 +76,11 @@ device = torch.device(
 
 test_df = pd.read_csv(CFG['ROOT_PATH'] + '/test.csv')
 test_dataset = CustomDataset(
-    test_df, get_test_transform(), "test", CFG['ROOT_PATH'])
+    test_df, "test", CFG['ROOT_PATH'])
 test_loader = DataLoader(
     test_dataset, batch_size=1, shuffle=False)
 
-net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
-             img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
-             mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
+net = EDSR(n_feats=256, n_resblocks=32, res_scale=0.1, scale=4)
 
 # net.load_state_dict(torch.load(CFG['MODEL_LOAD_PATH']), strict=True)
 # load = torch.load(CFG['MODEL_LOAD_PATH'])   
@@ -90,12 +88,11 @@ net = SwinIR(upscale=4, in_chans=3, img_size=CFG['LR_SIZE'], window_size=8,
 
 
 loaded_state_dict = torch.load(CFG['MODEL_LOAD_PATH'])
-new_state_dict = OrderedDict()
-for n, v in loaded_state_dict.items():
-    name = n.replace("module.","") # .module이 중간에 포함된 형태라면 (".module","")로 치환
-    new_state_dict[name] = v
-
-net.load_state_dict(new_state_dict)
-
+# new_state_dict = OrderedDict()
+# for n, v in loaded_state_dict.items():
+#     name = n.replace("module.","") # .module이 중간에 포함된 형태라면 (".module","")로 치환
+#     new_state_dict[name] = v
+# net.load_state_dict(new_state_dict)
+net.load_state_dict(loaded_state_dict['state_dict'])
 img_list, name_list = inference(net, test_loader, device)
 submission(name_list, img_list)
